@@ -51,18 +51,24 @@ describe('ChangeDetector', function () {
             private _changeDetector: ChangeDetector;
 
             constructor($scope, ChangeDetector) {
-                this._changeDetector = new ChangeDetector({scope: $scope});
+                if(this.disableChangeDetection === undefined || this.disableChangeDetection === "true") {
+                    this._changeDetector = new ChangeDetector({scope: $scope, includeChildComponents: this.includeChildComponents === "true"});
+                }
             }
 
             static config = {
                 bindings: <any>{
-                    user: '<wtUser'
+                    user: '<wtUser',
+                    disableChangeDetection: "@",
+                    includeChildComponents: "@",
                 },
+                transclude: true,
                 controller: UserComponent,
                 template: `
 <div class="wt-user-name">
     <span>{{ $ctrl.user.firstName }}</span>
     <span>{{ $ctrl.user.lastName }}</span>
+    <ng-transclude></ng-transclude>
 </div>
 <wt-inner></wt-inner>
 `
@@ -92,7 +98,7 @@ describe('ChangeDetector', function () {
             lastName: 'JAAIDI'
         };
 
-        element = $compile(`<wt-user wt-user="user"></wt-user>`)(scope)[0];
+        element = $compile(`<wt-user wt-user="user" disable-change="{{true}}"></wt-user>`)(scope)[0];
 
         scope.$digest();
 
@@ -151,6 +157,51 @@ describe('ChangeDetector', function () {
 
         /* `scope.user` has changed. Thus, the view should be updated. */
         expect(element.querySelector('.wt-user-name').innerText).toMatch(/Lionel\s+JAAIDI/);
+
+    });
+
+    it("should recursively disable watchers for child components if includeChildComponents option is true", function() {
+
+        let element;
+
+        scope.user = {
+            firstName: 'Younes',
+            lastName: 'JAAIDI'
+        };
+
+        /* Parent component with changeDetector that has includeChildComponents option and a child component with no changeDetector. */
+        element = $compile(`<wt-user wt-user="user" include-child-components="true"><wt-user wt-user="user" disable-change-detection="false"></wt-user></wt-user>`)(scope)[0];
+
+        scope.$digest();
+
+        /* There's only one watcher for the wtUser input. */
+        expect(_watchersCount({scope})).toEqual(1);
+
+        scope.user.firstName = 'Lionel';
+        scope.$digest();
+
+        /* There's only one watcher for the wtUser input. */
+        expect(_watchersCount({scope})).toEqual(1);
+
+        /* `scope.user` didn't change. Thus, neither of the views should not be updated. */
+        var texts = element.querySelectorAll('.wt-user-name');
+        expect(texts[0].innerText).toMatch(/Younes\s+JAAIDI/);
+        expect(texts[1].innerText).toMatch(/Younes\s+JAAIDI/);
+
+        scope.user = {
+            firstName: 'Lionel',
+            lastName: 'LAFFARGUE'
+        };
+
+        scope.$digest();
+
+        /* There's only one watcher for the wtUser input. */
+        expect(_watchersCount({scope})).toEqual(1);
+
+        /* `scope.user` has changed. Thus, the view should be updated. */
+        var texts = element.querySelectorAll('.wt-user-name');
+        expect(texts[0].innerText).toMatch(/Lionel\s+LAFFARGUE/)
+        expect(texts[1].innerText).toMatch(/Lionel\s+LAFFARGUE/)
 
     });
 

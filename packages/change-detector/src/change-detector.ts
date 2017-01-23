@@ -8,15 +8,16 @@
 export class ChangeDetector {
 
     private _scope: angular.IScope;
+    private _includeChildComponents: boolean = false;
     private _markedForCheck: boolean = false;
     private _watchersMap = {};
 
-    constructor({scope}) {
+    constructor({scope, includeChildComponents}) {
 
         this._scope = scope;
+        this._includeChildComponents = includeChildComponents === undefined ? false : includeChildComponents;
 
         this._overrideController();
-
     }
 
     markForCheck() {
@@ -42,9 +43,7 @@ export class ChangeDetector {
 
         while (scope != null) {
 
-            /* Only save/restore scopes without controllers as they are not components but just some directive
-             * scopes like ngRepeats' scopes. */
-            if (!scope.hasOwnProperty('$ctrl')) {
+            if(this._includeChildComponents || !scope.hasOwnProperty('$ctrl')) {
                 action(scope);
             }
 
